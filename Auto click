@@ -1,0 +1,204 @@
+wait(3)
+
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TeleportService = game:GetService("TeleportService")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+-- Screen GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MoonAutoClick"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Main Frame
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 220, 0, 210)
+main.Position = UDim2.new(1, -240, 1, -200)
+main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+title.Text = "🖱️Auto Clicker"
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 15
+title.Parent = main
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+-- Delay Input
+local delayBox = Instance.new("TextBox")
+delayBox.Size = UDim2.new(0.8, 0, 0, 28)
+delayBox.Position = UDim2.new(0.1, 0, 0.25, 0)
+delayBox.PlaceholderText = "Delay (e.g. 100ms / 0.1s)"
+delayBox.Text = "0.1"
+delayBox.TextColor3 = Color3.new(1, 1, 1)
+delayBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+delayBox.Font = Enum.Font.GothamSemibold
+delayBox.TextSize = 14
+delayBox.BorderSizePixel = 0
+delayBox.Parent = main
+Instance.new("UICorner", delayBox).CornerRadius = UDim.new(0, 8)
+
+-- Buttons
+local function makeBtn(text, y, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.8, 0, 0, 28)
+	btn.Position = UDim2.new(0.1, 0, y, 0)
+	btn.BackgroundColor3 = color
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.GothamSemibold
+	btn.TextSize = 15
+	btn.Parent = main
+	btn.BorderSizePixel = 0
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	return btn
+end
+
+local toggleBtn = makeBtn("Start Auto Click", 0.45, Color3.fromRGB(40, 140, 60))
+local hideBtn = makeBtn("Hide UI", 0.65, Color3.fromRGB(70, 70, 70))
+local rejoinBtn = makeBtn("Rejoin", 0.85, Color3.fromRGB(60, 100, 150))
+
+-- Destroy Button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Text = "X"
+closeBtn.Size = UDim2.new(0, 26, 0, 26)
+closeBtn.Position = UDim2.new(1, -30, 0, 2)
+closeBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+
+-- Notification Holder
+local notifHolder = Instance.new("Frame")
+notifHolder.Size = UDim2.new(0, 250, 0, 200)
+notifHolder.Position = UDim2.new(1, -270, 1, -220)
+notifHolder.BackgroundTransparency = 1
+notifHolder.Parent = gui
+
+-- Notification Function
+local function notify(message, color)
+	color = color or Color3.fromRGB(30, 30, 30)
+	local note = Instance.new("TextLabel")
+	note.Size = UDim2.new(1, 0, 0, 26)
+	note.Position = UDim2.new(0, 0, 1, 0)
+	note.BackgroundColor3 = color
+	note.Text = message
+	note.Font = Enum.Font.GothamSemibold
+	note.TextColor3 = Color3.new(1, 1, 1)
+	note.TextSize = 14
+	note.BackgroundTransparency = 0.2
+	note.Parent = notifHolder
+	Instance.new("UICorner", note).CornerRadius = UDim.new(0, 6)
+
+	TweenService:Create(note, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = UDim2.new(0, 0, 0, 0)
+	}):Play()
+
+	task.delay(2, function()
+		TweenService:Create(note, TweenInfo.new(0.4), {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+		task.wait(0.5)
+		note:Destroy()
+	end)
+end
+
+-- Functions
+local running = false
+local hidden = false
+
+local function parseDelay(txt)
+	txt = txt:lower()
+	if txt:find("ms") then
+		return tonumber(txt:match("%d+")) / 1000
+	elseif txt:find("s") then
+		return tonumber(txt:match("%d+"))
+    elseif txt:find("m") then
+        return tonumber(txt:match("%d+")) * 60
+    else
+		return tonumber(txt) or 0.1
+	end
+end
+
+local function click()
+	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+	VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+end
+
+-- Toggle Button
+toggleBtn.MouseButton1Click:Connect(function()
+	running = not running
+	if running then
+		toggleBtn.Text = "Stop Auto Click"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+		notify("✅ Auto Click Enabled", Color3.fromRGB(50, 120, 50))
+		task.spawn(function()
+			while running do
+				click()
+				task.wait(parseDelay(delayBox.Text))
+			end
+		end)
+	else
+		toggleBtn.Text = "Start Auto Click"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 60)
+		notify("⛔ Auto Click Stopped", Color3.fromRGB(150, 50, 50))
+	end
+end)
+
+-- Rejoin
+rejoinBtn.MouseButton1Click:Connect(function()
+	notify("🔄 Rejoining...", Color3.fromRGB(80, 120, 200))
+	task.wait(1)
+	TeleportService:Teleport(game.PlaceId, player)
+end)
+
+-- Hide Button
+hideBtn.MouseButton1Click:Connect(function()
+	hidden = not hidden
+	for _, child in ipairs(main:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("TextBox") then
+			if child ~= hideBtn then
+				child.Visible = not hidden
+			end
+		end
+	end
+
+	if hidden then
+		main.Size = UDim2.new(0, 150, 0, 50)
+		hideBtn.Text = "Unhide UI"
+		notify("👁️ UI Hidden")
+	else
+		main.Size = UDim2.new(0, 220, 0, 180)
+		hideBtn.Text = "Hide UI"
+		notify("👁️ UI Visible")
+	end
+end)
+
+-- Destroy
+closeBtn.MouseButton1Click:Connect(function()
+    notify("👁️ UI is getting destroy, please wait")
+    wait(5)
+	gui:Destroy()
+end)
+
+-- Keybind Toggle (K)
+UIS.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.K then
+		toggleBtn:Activate()
+	end
+end)
+
+notify("Auto Clicker Loaded!")
